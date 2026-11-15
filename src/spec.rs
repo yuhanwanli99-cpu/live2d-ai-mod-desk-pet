@@ -54,8 +54,10 @@ pub fn settings_spec() -> ModSettingsSpec {
             ModSettingField::Number {
                 key: "opacity".to_string(),
                 label: "不透明度".to_string(),
-                min: f64::from(crate::config::OPACITY_MIN),
-                max: f64::from(crate::config::OPACITY_MAX),
+                // 用合同表里的**字面量**而不是 f64::from(f32 常量)：f32 的 0.1 展宽成
+                // f64 是 0.10000000149011612，这份 spec 会被原样序列化给前端显示。
+                min: 0.1,
+                max: 1.0,
             },
             ModSettingField::Bool {
                 key: "always_on_top".to_string(),
@@ -65,8 +67,9 @@ pub fn settings_spec() -> ModSettingsSpec {
             ModSettingField::Number {
                 key: "height_ratio".to_string(),
                 label: "窗高占屏幕比例".to_string(),
-                min: f64::from(crate::config::HEIGHT_RATIO_MIN),
-                max: f64::from(crate::config::HEIGHT_RATIO_MAX),
+                // 同上：合同表字面量（0.25 / 0.9），不做 f32→f64 展宽。
+                min: 0.25,
+                max: 0.9,
             },
         ],
     }
@@ -129,19 +132,32 @@ mod tests {
             };
             (*min, *max)
         };
-        assert_eq!(
-            number("opacity"),
+        // 边界**逐字等于**合同表（不是 f32→f64 展宽后的 0.10000000149011612），
+        // 因为这份 spec 会原样序列化给前端显示。
+        assert_eq!(number("opacity"), (0.1, 1.0));
+        assert_eq!(number("height_ratio"), (0.25, 0.9));
+        // 同时必须与解析器的钳位常量一致（f32 侧比较，容差 1e-6）。
+        for (spec_pair, clamp_pair) in [
             (
-                f64::from(crate::config::OPACITY_MIN),
-                f64::from(crate::config::OPACITY_MAX)
-            )
-        );
-        assert_eq!(
-            number("height_ratio"),
+                number("opacity"),
+                (crate::config::OPACITY_MIN, crate::config::OPACITY_MAX),
+            ),
             (
-                f64::from(crate::config::HEIGHT_RATIO_MIN),
-                f64::from(crate::config::HEIGHT_RATIO_MAX)
-            )
-        );
+                number("height_ratio"),
+                (
+                    crate::config::HEIGHT_RATIO_MIN,
+                    crate::config::HEIGHT_RATIO_MAX,
+                ),
+            ),
+        ] {
+            assert!(
+                (spec_pair.0 - f64::from(clamp_pair.0)).abs() < 1e-6,
+                "{spec_pair:?}"
+            );
+            assert!(
+                (spec_pair.1 - f64::from(clamp_pair.1)).abs() < 1e-6,
+                "{spec_pair:?}"
+            );
+        }
     }
 }

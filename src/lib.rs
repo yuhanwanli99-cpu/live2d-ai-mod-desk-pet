@@ -96,7 +96,9 @@ pub struct DeskPetRuntime {
     voice_active: bool,
     /// `start` 注册的 settings schema（单测与「已就绪」判定用）。
     registered: bool,
-    /// 订阅 id（`start` 里由 host 发放；`shutdown` 尽力取消）。
+    /// 订阅 id（`start` 里由 host 发放）。**仅记录、不在这里取消**：host 停用 / 重启本
+    /// Mod 时自己会回收订阅（与模板 crate 及同级 Mod 仓库同形）；本字段留给单测与
+    /// 排障读，别把它当成取消句柄。
     subscriptions: Vec<SubscriptionId>,
 }
 
